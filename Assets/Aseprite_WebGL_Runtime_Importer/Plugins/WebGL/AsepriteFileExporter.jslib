@@ -1,3 +1,4 @@
+// version tag Compare1-Step-by-Step5-NamedFrames
 mergeInto(LibraryManager.library, {
     DownloadFileFromUnity: function (fileNamePtr, base64DataPtr) {
         var fileName = UTF8ToString(fileNamePtr);

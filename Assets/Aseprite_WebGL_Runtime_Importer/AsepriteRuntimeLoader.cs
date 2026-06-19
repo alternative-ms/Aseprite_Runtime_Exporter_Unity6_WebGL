@@ -1,5 +1,6 @@
 // Created by Alexander Tkachenko aka ALT, 2026 https://www.artstation.com/alternative_ms
 // This solusion is optimized for WebGL build work
+// version tag Compare1-Step-by-Step5-NamedFrames
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using UnityEngine;
 
 public class AsepriteRuntimeLoader : MonoBehaviour
 {
+    // get external method from plugin AsepriteFileLoader.jslib
 #if UNITY_WEBGL && !UNITY_EDITOR
     [DllImport("__Internal")]
     private static extern void TriggerFileOpenDialog(string objectName, string methodName);
@@ -15,6 +17,7 @@ public class AsepriteRuntimeLoader : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private AsepriteReader asepriteReader;
+    [SerializeField] private AsepriteExporter exporter;
     [SerializeField] private UnityEngine.UI.Button openFileButton;
     [SerializeField] private UnityEngine.UI.Image targetUiImage;
     [SerializeField] private int previewScale = 1;
@@ -45,6 +48,8 @@ public class AsepriteRuntimeLoader : MonoBehaviour
         string path = UnityEditor.EditorUtility.OpenFilePanel("Select Aseprite file", "", "ase,aseprite");
         if (!string.IsNullOrEmpty(path))
         {
+            if (exporter != null) exporter.SetCurrentFileName(path);
+
             byte[] fileBytes = System.IO.File.ReadAllBytes(path);
             OnAsepriteFileLoaded(Convert.ToBase64String(fileBytes));
         }
@@ -54,20 +59,29 @@ public class AsepriteRuntimeLoader : MonoBehaviour
 #endif
     }
 
-    public void OnAsepriteFileLoaded(string base64Data)
+    public void OnAsepriteFileLoaded(string incomingData)
     {
-        Debug.Log("OnAsepriteFileLoaded | base64Data : " + base64Data.Length);
         try
         {
+            string base64Data = incomingData;
+
+            if (incomingData.Contains("|"))
+            {
+                string[] parts = incomingData.Split('|');
+                string fileName = parts[0]; // filename (for example "slime_jump.ase")
+                base64Data = parts[1];      // clean Base64-string data
+
+                if (exporter != null) exporter.SetCurrentFileName(fileName);
+            }
+
             byte[] fileBytes = Convert.FromBase64String(base64Data);
 
             if (asepriteReader == null)
             {
-                Debug.LogError($"[{name}] Ошибка: AsepriteReader не назначен в инспекторе!", this);
+                Debug.LogError("Missing refs : AsepriteReader is Null");
                 return;
             }
 
-            Debug.Log("try to AsepriteReader.AseFileHeader header...");
             AsepriteReader.AseFileHeader header = asepriteReader.ReadHeader(fileBytes);
 
             animationSprites.Clear();
@@ -95,7 +109,7 @@ public class AsepriteRuntimeLoader : MonoBehaviour
                 Debug.Log("duration : " + duration);
             }
 
-            Debug.Log($"[Loader] Animation loaded step-by-step. Frames: {animationSprites.Count}");
+            Debug.Log($"Animation loaded step-by-step. Frames: {animationSprites.Count}");
 
             if (targetUiImage != null && animationSprites.Count > 0)
             {
@@ -108,7 +122,7 @@ public class AsepriteRuntimeLoader : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogError($"[Loader] Step Loader ERROR: {ex.Message}\n{ex.StackTrace}");
+            Debug.LogError($"Loader ERROR: {ex.Message}\n{ex.StackTrace}");
         }
     }
 

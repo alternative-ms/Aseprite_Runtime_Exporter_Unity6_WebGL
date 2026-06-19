@@ -1,8 +1,10 @@
 // Created by Alexander Tkachenko aka ALT, 2026 https://www.artstation.com/alternative_ms
 // This solusion is optimized for WebGL build work
+// version tag Compare1-Step-by-Step5-NamedFrames
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices; // need for WebGL build
+using System.IO; // need for Path.GetFileNameWithoutExtension
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,26 +15,43 @@ public class AsepriteExporter : MonoBehaviour
     [DllImport("__Internal")]
     private static extern void DownloadFileFromUnity(string fileName, string base64Data);
 #endif
+
     [Header("References")]
     [SerializeField] private AsepriteRuntimeLoader runtimeLoader;
-    [SerializeField] private Button exportButton;
+    [SerializeField] private Button exportAtlasButton;
+    [SerializeField] private Button exportFramesButton;
+
+    private string currentFileName = "aseprite_file"; // file name without .aseprite
 
     private void Start()
     {
-        if (exportButton != null) exportButton.onClick.AddListener(OnExportButtonClicked);
+        if (exportAtlasButton != null) exportAtlasButton.onClick.AddListener(OnExportAtlasButtonClicked);
+        if (exportFramesButton != null) exportFramesButton.onClick.AddListener(OnExportFramesButtonClicked);
     }
 
-    private void OnExportButtonClicked()
+    public void SetCurrentFileName(string rawFileName)
+    {
+        if (string.IsNullOrEmpty(rawFileName)) return;
+
+        // remove file extension "C:/Folder/player.ase" -->> "player"
+        currentFileName = Path.GetFileNameWithoutExtension(rawFileName);
+        Debug.Log($"[Exporter] Active file name set to: {currentFileName}");
+    }
+
+    private void OnExportAtlasButtonClicked()
     {
         List<Sprite> sprites = runtimeLoader.GetAnimationSprites();
-
-        if (sprites == null || sprites.Count == 0)
-        {
-            Debug.LogWarning("[Exporter] No data to export");
-            return;
-        }
+        if (sprites == null || sprites.Count == 0) return;
 
         ExportAsHorizontalSpriteSheet(sprites);
+    }
+
+    private void OnExportFramesButtonClicked()
+    {
+        List<Sprite> sprites = runtimeLoader.GetAnimationSprites();
+        if (sprites == null || sprites.Count == 0) return;
+
+        ExportAsIndividualFrames(sprites);
     }
 
     private void ExportAsHorizontalSpriteSheet(List<Sprite> sprites)
@@ -44,7 +63,6 @@ public class AsepriteExporter : MonoBehaviour
             int totalFrames = sprites.Count;
 
             Texture2D atlasTexture = new Texture2D(frameW * totalFrames, frameH, TextureFormat.RGBA32, false);
-
             atlasTexture.filterMode = FilterMode.Point;
             atlasTexture.wrapMode = TextureWrapMode.Clamp;
 
@@ -55,16 +73,49 @@ public class AsepriteExporter : MonoBehaviour
             }
 
             atlasTexture.Apply();
-
             byte[] pngBytes = atlasTexture.EncodeToPNG();
-
             Destroy(atlasTexture);
 
-            SendToBrowserDownload("unity-aseprite_spritesheet.png", pngBytes);
+            // filename template: "aseprite-name_spritesheet.png"
+            string atlasName = $"{currentFileName}_spritesheet.png";
+            SendToBrowserDownload(atlasName, pngBytes);
         }
         catch (Exception ex)
         {
             Debug.LogError($"[Exporter] Atlas generation ERROR: {ex.Message}");
+        }
+    }
+
+    private void ExportAsIndividualFrames(List<Sprite> sprites)
+    {
+        try
+        {
+            for (int i = 0; i < sprites.Count; i++)
+            {
+                Sprite sprite = sprites[i];
+                int frameW = (int)sprite.rect.width;
+                int frameH = (int)sprite.rect.height;
+
+                Texture2D frameTexture = new Texture2D(frameW, frameH, TextureFormat.RGBA32, false);
+                frameTexture.filterMode = FilterMode.Point;
+                frameTexture.wrapMode = TextureWrapMode.Clamp;
+
+                Color32[] pixels = sprite.texture.GetPixels32();
+                frameTexture.SetPixels32(0, 0, frameW, frameH, pixels);
+                frameTexture.Apply();
+
+                byte[] pngBytes = frameTexture.EncodeToPNG();
+                Destroy(frameTexture);
+
+                // filename template: "aseprite-name_000.png"
+                string fileName = $"{currentFileName}_{i:D3}.png";
+
+                SendToBrowserDownload(fileName, pngBytes);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[Exporter] Individual frames export ERROR: {ex.Message}");
         }
     }
 
@@ -73,18 +124,14 @@ public class AsepriteExporter : MonoBehaviour
         string base64String = Convert.ToBase64String(fileBytes);
 
 #if UNITY_EDITOR
-        // show OS based file dialog
-        string savePath = UnityEditor.EditorUtility.SaveFilePanel("Save PNG atlas", "", fileName, "png");
-
+        string savePath = UnityEditor.EditorUtility.SaveFilePanel("Save PNG", "", fileName, "png");
         if (!string.IsNullOrEmpty(savePath))
         {
             System.IO.File.WriteAllBytes(savePath, fileBytes);
-            Debug.Log($"[Editor Exporter] File saved to: {savePath}");
+            Debug.Log($"[Editor Exporter] Saved to: {savePath}");
         }
 #elif UNITY_WEBGL && !UNITY_EDITOR
-    // in WebGL call JS-logic to open file dialog
-    DownloadFileFromUnity(fileName, base64String);
+        DownloadFileFromUnity(fileName, base64String);
 #endif
     }
-
 }

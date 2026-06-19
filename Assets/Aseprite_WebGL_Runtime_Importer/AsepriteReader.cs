@@ -1,5 +1,6 @@
 // Created by Alexander Tkachenko aka ALT, 2026 https://www.artstation.com/alternative_ms
 // This solusion is optimized for WebGL build work
+// version tag Compare1-Step-by-Step5-NamedFrames
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -65,7 +66,7 @@ public class AsepriteReader : MonoBehaviour
 
     public Color32[] ParseFramePixels(byte[] fileBytes, int targetFrameIndex, int canvasW, int canvasH, out float durationSeconds)
     {
-        Debug.Log("ParseFramePixels | Target Frame: {targetFrameIndex}");
+        Debug.Log("ParseFramePixels(...)");
 
         durationSeconds = 0.1f;
         Color32[] blendedCanvas = new Color32[canvasW * canvasH];
@@ -176,7 +177,6 @@ public class AsepriteReader : MonoBehaviour
 
                                 if (compressedLength > 0)
                                 {
-                                    //Debug.Log($"ParseFrame | Decompressing Cel L:{layerIndex} Size:{compressedLength}");
                                     decompressedPixels = DecompressZlib(reader.BaseStream, compressedLength);
                                 }
                             }
@@ -208,8 +208,6 @@ public class AsepriteReader : MonoBehaviour
 
     private byte[] DecompressZlib(Stream stream, int compressedLength)
     {
-        //Debug.Log("DecompressZlib | " + stream.Length + " | " + compressedLength);
-
         if (compressedLength <= 6)
         {
             Debug.Log("DecompressZlib | compressedLength <= 6");
@@ -218,7 +216,7 @@ public class AsepriteReader : MonoBehaviour
 
         byte[] compressedBuffer = new byte[compressedLength];
         int bytesRead = stream.Read(compressedBuffer, 0, compressedLength);
-        //Debug.Log("DecompressZlib | bytesRead : " + bytesRead);
+
         int stripOffset = 0;
         if (bytesRead >= 2 && compressedBuffer[0] == 0x78)
         {
@@ -234,7 +232,6 @@ public class AsepriteReader : MonoBehaviour
 
         try
         {
-            //Debug.Log("DecompressZlib | try WebGLPureInflate.Inflate");
             return WebGLPureInflate.Inflate(compressedBuffer, stripOffset, pureDeflateLength); // use 'handmade' decompressor that don't crash on WebGL
         }
         catch (Exception ex)
@@ -244,7 +241,7 @@ public class AsepriteReader : MonoBehaviour
         }
     }
 
-    // support a basic color blands for now
+    // support a basic color blends for now // TODO : add all blend modes from Aseprite
     private void BlendCelToCanvas(Color32[] canvas, int canvasW, int canvasH, byte[] celBytes, int celW, int celH, int xOffset, int yOffset, byte celOpacity)
     {
         int byteIndex = 0;

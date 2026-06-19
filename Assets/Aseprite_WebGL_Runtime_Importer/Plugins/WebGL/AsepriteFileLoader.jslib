@@ -1,3 +1,4 @@
+// version tag Compare1-Step-by-Step5-NamedFrames
 mergeInto(LibraryManager.library, {
     TriggerFileOpenDialog: function (objectNamePtr, methodNamePtr) {
         var objectName = UTF8ToString(objectNamePtr);
@@ -18,7 +19,9 @@ mergeInto(LibraryManager.library, {
             var file = event.target.files[0];
             if (!file) return;
 
+            var fileName = file.name;
             var reader = new FileReader();
+            
             reader.onload = function (e) {
                 var arrayBuffer = e.target.result;
                 var bytes = new Uint8Array(arrayBuffer);
@@ -31,8 +34,10 @@ mergeInto(LibraryManager.library, {
                 }
                 var base64String = window.btoa(binary);
 
-                // transfer data into Unity GameObject
-                SendMessage(objectName, methodName, base64String);
+                var combinedData = fileName + "|" + base64String;
+
+                // transfer combined data into Unity GameObject
+                SendMessage(objectName, methodName, combinedData);
                 
                 // reset input to allow select file again
                 fileInput.value = '';
